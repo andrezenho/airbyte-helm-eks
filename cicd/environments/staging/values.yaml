@@ -33,7 +33,7 @@ airbyte:
     create: false
     name: airbyte-sa
     annotations:
-      eks.amazonaws.com/role-arn: arn:aws:iam::992382686550:role/my-created-role-aws
+      eks.amazonaws.com/role-arn: arn:aws:iam::<MY-ACCOUNT>:role/my-created-role-aws
 
 server:
   enabled: true
