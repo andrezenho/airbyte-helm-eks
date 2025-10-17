@@ -1,0 +1,81 @@
+name: Deploy Airbyte
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Select the environment to deploy (staging or production)'
+        required: true
+        default: staging
+        type: choice
+        options:
+          - staging
+          - production
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'latest'
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: 'latest'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update Helm repositories
+        run: helm repo add airbyte https://airbytehq.github.io/helm-charts && helm repo update
+
+      - name: Configure kubeconfig for EKS
+        run: |
+          ENV="${{ github.event.inputs.environment }}"
+          if [ "$ENV" == "production" ]; then
+            CLUSTER_NAME="mycluster-prd-eks"
+          else
+            CLUSTER_NAME="mycluster-stg-eks"
+          fi
+
+          aws eks update-kubeconfig --region us-east-1 --name $CLUSTER_NAME
+      
+      - name: Create namespace
+        run: |
+          ENV="${{ github.event.inputs.environment }}"
+          echo "📦 Creating namespace 'airbyte' for $ENV"
+          kubectl create namespace airbyte || true    
+
+      - name: Apply ServiceAccount
+        run: |
+          ENV="${{ github.event.inputs.environment }}"
+          echo "Applying Serviceaccount for $ENV"
+          kubectl apply -f ./cicd/environments/$ENV/k8s/service-account.yaml
+
+      - name: Apply gp3 StorageClass
+        run: |
+          ENV="${{ github.event.inputs.environment }}"
+          echo "📦 Applying gp3 StorageClass for $ENV"
+          kubectl apply -f ./cicd/environments/$ENV/k8s/gp3-storageclass.yaml
+
+      - name: Deploy Airbyte with Helm
+        run: |
+          ENV="${{ github.event.inputs.environment }}"
+          echo "🚀 Deploying Airbyte to $ENV environment"
+          helm upgrade --install airbyte airbyte/airbyte \
+            --namespace airbyte \
+            --create-namespace \
+            --values ./cicd/environments/$ENV/values.yaml

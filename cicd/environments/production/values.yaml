@@ -1,0 +1,23 @@
+auth:
+  instanceAdmin:
+    firstName: "Data"
+    lastName: "Caju"
+
+global:
+  database:
+    secretName: "production/eks/airbyte/airbyte"
+    hostSecretKey: "host"
+    portSecretKey: "port"
+    nameSecretKey: "database"
+    userSecretKey: "username"
+    passwordSecretKey: "password"
+
+webapp:
+  service:
+    type: LoadBalancer
+
+workers:
+  enabled: true
+
+server:
+  enabled: true

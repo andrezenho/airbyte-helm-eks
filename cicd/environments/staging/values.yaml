@@ -1,0 +1,99 @@
+auth:
+  instanceAdmin:
+    firstName: "User"
+    lastName: "Name"
+
+global:
+  database:
+    secretsManager:
+      enabled: true
+      secretName: "rds/stg/data-stg-use1-aurora-postgresql-airbyte" # caminho secrets manager created by RDS
+      hostSecretKey: "host"
+      portSecretKey: "port"
+      nameSecretKey: "database"
+      userSecretKey: "username"
+      passwordSecretKey: "password"
+
+  storage:
+    type: "S3"
+    bucket:
+      name: "my-bucket"
+      log: "my-bucket/log"
+      state: "my-bucket/state"
+      workloadOutput: "my-bucket/workload-output"
+      auditLogging: "my-bucket/audit-logging"
+    s3:
+      region: "us-east-1"
+
+  env_vars:
+    STORAGE_BUCKET_AUDIT_LOGGING: "my-bucket/audit-logging" # com essa global sim foi no deploy de worker
+
+airbyte:
+  serviceAccount:
+    create: false
+    name: airbyte-sa
+    annotations:
+      eks.amazonaws.com/role-arn: arn:aws:iam::992382686550:role/my-created-role-aws
+
+server:
+  enabled: true
+  auditLoggingEnabled: true
+  env_vars:
+    AIRBYTE_URL: "http://airbyte-server.airbyte.svc.cluster.local:8000/"  # Ajuste para Kubernetes
+  extraEnv:
+    - name: AIRBYTE_MANIFEST_SERVER_API_BASE_PATH
+      value: "http://airbyte-connector-builder-server:80"
+  image:
+    repository: airbyte/server
+    tag: 2.0.0
+  persistence:
+    enabled: true
+    size: 20Gi
+    storageClassName: gp3
+    accessModes:
+      - ReadWriteOnce
+
+worker:
+  enabled: true
+  extraEnv:
+  persistence:
+    enabled: true
+    size: 20Gi
+    storageClassName: gp3
+    accessModes:
+      - ReadWriteOnce
+
+webapp:
+  enabled: false
+
+airbyte-bootloader:
+  enabled: true
+
+connector-builder-server:
+  enabled: true
+
+cron:
+  enabled: true
+
+worker:
+  enabled: true
+
+workload-api-server:
+  enabled: true
+  livenessProbe:
+    enabled: false
+  readinessProbe:
+    enabled: false
+
+workload-launcher:
+  enabled: true
+  livenessProbe:
+    enabled: false
+  readinessProbe:
+    enabled: false
+
+metrics:
+  enabled: false
+
+temporal:
+  enabled: true
