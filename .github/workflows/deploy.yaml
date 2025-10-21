@@ -79,3 +79,9 @@ jobs:
             --namespace airbyte \
             --create-namespace \
             --values ./cicd/environments/$ENV/values.yaml
+      
+      - name: Apply Ingress
+        run: |
+          ENV="${{ github.event.inputs.environment }}"
+          echo "📦 Applying gp3 StorageClass for $ENV"
+          kubectl apply -f ./cicd/environments/$ENV/k8s/ingress.yaml
