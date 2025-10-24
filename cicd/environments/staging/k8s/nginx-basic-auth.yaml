@@ -1,0 +1,67 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-auth-proxy
+  namespace: airbyte
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nginx-auth-proxy
+  template:
+    metadata:
+      labels:
+        app: nginx-auth-proxy
+    spec:
+      containers:
+        - name: nginx
+          image: nginx:1.25
+          ports:
+            - containerPort: 8080
+          volumeMounts:
+            - name: nginx-config
+              mountPath: /etc/nginx/conf.d
+            - name: htpasswd
+              mountPath: /etc/nginx/auth
+      volumes:
+        - name: nginx-config
+          configMap:
+            name: nginx-auth-config
+        - name: htpasswd
+          secret:
+            secretName: airbyte-basic-auth
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-auth-config
+  namespace: airbyte
+data:
+  default.conf: |
+    server {
+      listen 8080;
+      server_name _;
+
+      auth_basic "Authentication Required - Airbyte";
+      auth_basic_user_file /etc/nginx/auth/.htpasswd;
+
+      location / {
+        proxy_pass http://airbyte-airbyte-server-svc:8001;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+      }
+    }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-auth-proxy
+  namespace: airbyte
+spec:
+  type: ClusterIP
+  selector:
+    app: nginx-auth-proxy
+  ports:
+    - port: 8080
+      targetPort: 8080

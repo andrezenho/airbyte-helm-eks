@@ -24,6 +24,6 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: airbyte-airbyte-server-svc
+                name: nginx-auth-proxy
                 port:
-                  number: 8001
+                  number: 8080

@@ -23,7 +23,7 @@ jobs:
       - name: Set up AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
 
@@ -80,8 +80,25 @@ jobs:
             --create-namespace \
             --values ./cicd/environments/$ENV/values.yaml
       
+      # 🧠 Cria o Secret com o arquivo htpasswd (Base64 vindo do GitHub Secrets)
+      - name: Apply Basic Auth Secret
+        run: |
+          ENV="${{ github.event.inputs.environment }}"
+          echo "🔐 Applying NGINX Basic Auth Secret for $ENV"
+          envsubst < ./cicd/environments/$ENV/k8s/nginx-basic-auth-secret.yaml | kubectl apply -f -
+        env:
+          BASIC_AUTH_FILE_BASE64: ${{ secrets.BASIC_AUTH_FILE_BASE64 }}
+
+      # 🚀 Faz o deploy do NGINX proxy que protege o Airbyte
+      - name: Deploy NGINX Auth Proxy
+        run: |
+          ENV="${{ github.event.inputs.environment }}"
+          echo "🚀 Deploying NGINX Auth Proxy to $ENV environment"
+          kubectl apply -f ./cicd/environments/$ENV/k8s/nginx-basic-auth.yaml
+
+      # 🌐 Aplica o Ingress (mantém o ALB, mas agora aponta pro proxy)
       - name: Apply Ingress
         run: |
           ENV="${{ github.event.inputs.environment }}"
-          echo "📦 Applying gp3 StorageClass for $ENV"
+          echo "🌐 Applying Ingress for $ENV"
           kubectl apply -f ./cicd/environments/$ENV/k8s/ingress.yaml
